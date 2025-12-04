@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import authRoutes from './routes/authRoutes';
+import authRouter from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
 import webhookRoutes from './routes/webhookRoutes';
@@ -16,14 +16,14 @@ const requiredEnvVars = [
   'FLUXOCLEAN_HOME',
   'SMTP_HOST',
   'SMTP_USER',
-  'SMTP_PASS',
+  'SMTP_PASS'
 ];
 
-const missingVars = requiredEnvVars.filter((key) => !process.env[key]);
+const missingVars = requiredEnvVars.filter(key => !process.env[key]);
 
 if (missingVars.length > 0) {
   console.error('FATAL ERROR: Missing required environment variables:');
-  missingVars.forEach((v) => console.error(` - ${v}`));
+  missingVars.forEach(v => console.error(` - ${v}`));
   process.exit(1);
 }
 
@@ -46,7 +46,8 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1) {
         return callback(null, true);
       } else {
-        const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
+        const msg =
+          `The CORS policy for this site does not allow access from the specified Origin.`;
         return callback(new Error(msg), false);
       }
     },
@@ -71,7 +72,7 @@ const limiter = rateLimit({
   message: 'Muitas requisições vindas deste IP, tente novamente mais tarde.',
   keyGenerator: (req: any) => {
     return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-  },
+  }
 });
 
 app.use('/api', limiter as any);
@@ -79,7 +80,7 @@ app.use('/api', limiter as any);
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI as string);
-    console.log('✅ Mongo FluxoClean conectado com sucesso');
+    console.log('✅ Mongo FluxoClean conectado');
   } catch (err) {
     console.error('❌ MongoDB Error:', err);
     process.exit(1);
@@ -87,7 +88,8 @@ const connectDB = async () => {
 };
 connectDB();
 
-app.use('/api/auth', authRoutes);
+// Routes
+app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/webhooks', webhookRoutes);
@@ -97,7 +99,7 @@ app.get('/health', (req: Request, res: any) => {
 });
 
 app.get('/', (req: Request, res: any) => {
-  res.send('FluxoClean API Secured & Running');
+  res.send('FluxoClean API Running');
 });
 
 app.use((err: any, req: Request, res: any, next: NextFunction) => {
