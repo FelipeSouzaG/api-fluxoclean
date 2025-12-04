@@ -13,7 +13,7 @@ import {
   updateSubUser,
   deleteSubUser
 } from '../controllers/authController';
-import { protect, authorize } from '../middleware/authMiddleware.ts'; // Add .ts explicit extension for resolution safety if needed, or rely on node resolution
+import { protect, authorize } from '../middleware/authMiddleware';
 
 const router = Router();
 
