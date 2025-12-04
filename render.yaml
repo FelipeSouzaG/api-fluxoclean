@@ -10,7 +10,7 @@ services:
         value: production
       - key: ALLOWED_ORIGINS
         fromConnectionString: https://fluxoclean.com.br,https://www.fluxoclean.com.br,https://app.fluxoclean.com.br
-
+      
       # URLs do Ecossistema
       - key: API_BASE_URL
         value: https://api-fluxoclean.onrender.com
