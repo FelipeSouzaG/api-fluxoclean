@@ -9,7 +9,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: ALLOWED_ORIGINS
-        fromConnectionString: https://fluxoclean.com.br,https://www.fluxoclean.com.br,https://app.fluxoclean.com.br
+        fromConnectionString: https://fluxoclean.com.br,https://www.fluxoclean.com.br,https://smart-store.fluxoclean.com.br,https://smart-industry.fluxoclean.com.br,https://smart-service.fluxoclean.com.br
       
       # URLs do Ecossistema
       - key: API_BASE_URL
@@ -17,7 +17,7 @@ services:
       - key: FLUXOCLEAN_HOME
         value: https://fluxoclean.com.br
       - key: SMART_STORE
-        value: https://app.fluxoclean.com.br
+        value: https://smart-store.fluxoclean.com.br
       - key: SMART_INDUSTRY
         value: https://industry.fluxoclean.com.br
       - key: SMART_SERVICE
