@@ -1,0 +1,60 @@
+services:
+  - type: web
+    name: api-fluxoclean
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        fromConnectionString: https://fluxoclean.com.br,https://www.fluxoclean.com.br,https://app.fluxoclean.com.br
+      
+      # URLs do Ecossistema
+      - key: API_BASE_URL
+        value: https://api-fluxoclean.onrender.com
+      - key: FLUXOCLEAN_HOME
+        value: https://fluxoclean.com.br
+      - key: SMART_STORE
+        value: https://app.fluxoclean.com.br
+      - key: SMART_INDUSTRY
+        value: https://industry.fluxoclean.com.br
+      - key: SMART_SERVICE
+        value: https://service.fluxoclean.com.br
+
+      # Segurança e Banco (Preencher no Dashboard)
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+
+      # Configuração de Email (SMTP)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_SECURE
+        value: true
+
+      # Mercado Pago
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_PUBLIC_KEY
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false
+
+      # Super Admin
+      - key: U_N
+        value: Super Admin
+      - key: U_X
+        sync: false
+      - key: U_S
+        sync: false
+
+    autoDeploy: false
