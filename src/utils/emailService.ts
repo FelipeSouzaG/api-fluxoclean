@@ -1,69 +1,32 @@
 
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-let transporter: any = null;
+// Inicializa o cliente Resend apenas se a chave estiver presente
+const apiKey = process.env.RESEND_API_KEY;
+let resend: Resend | null = null;
 
-const getTransporter = () => {
-  if (transporter) return transporter;
+if (apiKey) {
+    resend = new Resend(apiKey);
+    console.log("✅ [EmailService] Cliente Resend inicializado.");
+} else {
+    console.warn("⚠️ [EmailService] RESEND_API_KEY não configurada. E-mails não serão enviados.");
+}
 
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587');
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  
-  // CORREÇÃO CRÍTICA PARA RENDER + ZOHO:
-  // Porta 587 EXIGE secure: false (STARTTLS).
-  // Porta 465 EXIGE secure: true (SSL).
-  // Ignoramos process.env.SMTP_SECURE para evitar conflitos de configuração manual.
-  const secure = port === 465;
-
-  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure} (Auto-definido), User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
-
-  if (!host || !user || !pass) {
-      console.warn("⚠️ [EmailService] Variáveis de ambiente de e-mail incompletas.");
-  }
-
-  transporter = nodemailer.createTransport({
-    host: host,
-    port: port,
-    secure: secure, 
-    auth: {
-      user: user,
-      pass: pass,
-    },
-    tls: {
-      rejectUnauthorized: false,
-      ciphers: 'SSLv3'
-    },
-    // CRÍTICO PARA RENDER: Força IPv4 para evitar timeouts de resolução DNS IPv6
-    family: 4, 
-    connectionTimeout: 30000, 
-    greetingTimeout: 30000,
-    socketTimeout: 30000,
-    debug: true, 
-    logger: true 
-  } as any);
-
-  transporter.verify((error: any, success: any) => {
-      if (error) {
-          console.error("❌ [EmailService] Erro de conexão SMTP:", error);
-      } else {
-          console.log(`✅ [EmailService] Pronto para envio (Porta ${port} - ${secure ? 'SSL' : 'STARTTLS'}).`);
-      }
-  });
-
-  return transporter;
+// Helper para obter o remetente configurado ou um fallback seguro
+const getFromEmail = () => {
+    return process.env.EMAIL_FROM || 'onboarding@resend.dev';
 };
 
 export const sendResetPasswordEmail = async (to: string, token: string) => {
+  if (!resend) {
+      console.error("❌ [EmailService] Tentativa de envio sem configuração do Resend.");
+      throw new Error("Serviço de e-mail não configurado.");
+  }
+
   const frontendUrl = process.env.FLUXOCLEAN_HOME;
   const resetLink = `${frontendUrl}/reset-password/${token}`;
 
-  const mailOptions = {
-    from: `"FluxoClean System" <${process.env.SMTP_USER}>`,
-    to,
-    subject: 'Recuperação de Senha - FluxoClean',
-    html: `
+  const htmlContent = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #ffffff;">
                 <h2 style="color: #4F46E5; text-align: center;">Recuperação de Senha</h2>
                 <p style="color: #333;">Olá,</p>
@@ -77,13 +40,22 @@ export const sendResetPasswordEmail = async (to: string, token: string) => {
                 <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
                 <p style="font-size: 12px; color: #9ca3af; text-align: center;">Este link expira em 1 hora. Se você não solicitou isso, ignore este e-mail.</p>
             </div>
-        `,
-  };
+        `;
 
   try {
-    const t = getTransporter();
-    await t.sendMail(mailOptions);
-    console.log(`📧 E-mail de recuperação enviado para ${to}`);
+    const { data, error } = await resend.emails.send({
+        from: getFromEmail(),
+        to: [to],
+        subject: 'Recuperação de Senha - FluxoClean',
+        html: htmlContent,
+    });
+
+    if (error) {
+        console.error("❌ [EmailService] Erro na API do Resend:", error);
+        throw new Error(error.message);
+    }
+
+    console.log(`📧 E-mail de recuperação enviado para ${to}. ID: ${data?.id}`);
   } catch (error) {
     console.error('❌ Erro ao enviar e-mail de recuperação:', error);
     throw error;
@@ -95,14 +67,15 @@ export const sendCompleteRegistrationEmail = async (
   companyName: string,
   token: string
 ) => {
+  if (!resend) {
+      console.error("❌ [EmailService] Tentativa de envio sem configuração do Resend.");
+      return; // Em fluxo de cadastro, podemos logar o erro mas não necessariamente crashar a request se o email falhar
+  }
+
   const frontendUrl = process.env.FLUXOCLEAN_HOME;
   const completeLink = `${frontendUrl}/complete-registration?token=${token}`;
 
-  const mailOptions = {
-    from: `"FluxoClean System" <${process.env.SMTP_USER}>`,
-    to,
-    subject: 'Finalize seu cadastro - FluxoClean',
-    html: `
+  const htmlContent = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #ffffff;">
                   <h2 style="color: #10B981; text-align: center;">Bem-vindo ao FluxoClean!</h2>
                   <p style="color: #333;">Olá,</p>
@@ -115,15 +88,23 @@ export const sendCompleteRegistrationEmail = async (
                   <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
                   <p style="font-size: 12px; color: #9ca3af; text-align: center;">Se você não iniciou este cadastro, por favor ignore este e-mail.</p>
               </div>
-          `,
-  };
+          `;
 
   try {
-    const t = getTransporter();
-    await t.sendMail(mailOptions);
-    console.log(`📧 E-mail de conclusão de cadastro enviado para ${to}`);
+    const { data, error } = await resend.emails.send({
+        from: getFromEmail(),
+        to: [to],
+        subject: 'Finalize seu cadastro - FluxoClean',
+        html: htmlContent,
+    });
+
+    if (error) {
+        console.error("❌ [EmailService] Erro na API do Resend:", error);
+        // Não lançamos erro aqui para não travar o cadastro no frontend, apenas logamos
+    } else {
+        console.log(`📧 E-mail de conclusão de cadastro enviado para ${to}. ID: ${data?.id}`);
+    }
   } catch (error) {
     console.error('❌ Erro ao enviar e-mail de cadastro:', error);
-    throw error;
   }
 };
