@@ -10,7 +10,7 @@ services:
         value: production
       - key: ALLOWED_ORIGINS
         value: https://fluxoclean.com.br,https://www.fluxoclean.com.br,https://smart-store.fluxoclean.com.br,https://app-fluxoclean.pages.dev,https://app-smart-store.pages.dev
-
+      
       # URLs do Ecossistema
       - key: API_BASE_URL
         value: https://api-fluxoclean.onrender.com
@@ -29,7 +29,7 @@ services:
       - key: JWT_SECRET
         sync: false
 
-      # Configuração de Email (SMTP) - Recomendado: Porta 587 para Zoho/Gmail em Cloud
+      # Configuração de Email (SMTP) - Zoho/Gmail use Porta 587 (STARTTLS)
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
