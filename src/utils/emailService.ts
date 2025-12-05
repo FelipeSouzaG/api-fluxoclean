@@ -13,6 +13,7 @@ if (apiKey) {
 }
 
 // Helper para obter o remetente configurado ou um fallback seguro
+// Retorna apenas o email, o nome de exibição é adicionado no envio
 const getFromEmail = () => {
     return process.env.EMAIL_FROM || 'onboarding@resend.dev';
 };
@@ -44,7 +45,7 @@ export const sendResetPasswordEmail = async (to: string, token: string) => {
 
   try {
     const { data, error } = await resend.emails.send({
-        from: getFromEmail(),
+        from: `FluxoClean Sistemas <${getFromEmail()}>`,
         to: [to],
         subject: 'Recuperação de Senha - FluxoClean',
         html: htmlContent,
@@ -92,7 +93,7 @@ export const sendCompleteRegistrationEmail = async (
 
   try {
     const { data, error } = await resend.emails.send({
-        from: getFromEmail(),
+        from: `FluxoClean Sistemas <${getFromEmail()}>`,
         to: [to],
         subject: 'Finalize seu cadastro - FluxoClean',
         html: htmlContent,
