@@ -39,6 +39,52 @@ const getSystemUrl = (tenant: any) => {
   }
 };
 
+// Function to seed remote tenant data via server-to-server call
+const seedRemoteSystem = async (tenant: any, token: string) => {
+    // Determine the API URL based on system type
+    let apiUrl = '';
+    
+    // In production, these should be environment variables.
+    // Fallback to known production endpoint for SmartStore if not set.
+    if (tenant.systemType === SystemType.COMMERCE) {
+        apiUrl = process.env.SMART_STORE_API_URL || 'https://api-smart-store.onrender.com/api';
+    } else {
+        // Other systems not yet implemented
+        return; 
+    }
+
+    try {
+        const payload = {
+            tenantId: tenant._id,
+            tenantName: tenant.tenantName,
+            companyInfo: {
+                name: tenant.name,
+                cnpjCpf: tenant.document,
+                email: tenant.email,
+                phone: '', // Placeholder, will be filled in wizard
+                address: {}
+            }
+        };
+
+        const response = await fetch(`${apiUrl}/settings`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            console.error(`Failed to seed remote system: ${response.statusText}`);
+        } else {
+            console.log(`✅ Tenant ${tenant.name} seeded to SmartStore.`);
+        }
+    } catch (error) {
+        console.error("Error seeding remote system:", error);
+    }
+};
+
 const validatePasswordStrength = (password: string) => {
   const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
   return regex.test(password);
@@ -225,10 +271,15 @@ export const completeRegistration = async (req: any, res: any) => {
         email: (user as any).email,
         companyName: (tenant as any).name,
         document: (tenant as any).document,
+        tenantName: (tenant as any).tenantName, // Added slug to JWT
       },
       JWT_SECRET,
       { expiresIn: '1d' }
     );
+
+    // Push configuration to the target system (Server-to-Server)
+    // This seeds the StoreConfig with the registration data so the wizard is pre-filled.
+    await seedRemoteSystem(tenant, jwtToken);
 
     const code = generateAuthCode(jwtToken);
 
@@ -326,6 +377,7 @@ export const login = async (req: any, res: any) => {
         email: user.email,
         companyName: tenant.name,
         document: tenant.document,
+        tenantName: tenant.tenantName
       },
       JWT_SECRET,
       { expiresIn: '1d' }
