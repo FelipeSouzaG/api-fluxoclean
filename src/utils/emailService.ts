@@ -1,3 +1,4 @@
+
 import nodemailer from 'nodemailer';
 
 let transporter: any = null;
@@ -5,13 +6,22 @@ let transporter: any = null;
 const getTransporter = () => {
   if (transporter) return transporter;
 
+  const host = process.env.SMTP_HOST;
   const port = parseInt(process.env.SMTP_PORT || '465');
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
+  
+  // Lógica de segurança: 465 é implícito SSL/TLS. 587 é STARTTLS.
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+
+  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure}, User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
+
+  if (!host || !user || !pass) {
+      console.warn("⚠️ [EmailService] Variáveis de ambiente de e-mail incompletas. O envio falhará.");
+  }
 
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: host,
     port: port,
     secure: secure,
     auth: {
@@ -19,12 +29,26 @@ const getTransporter = () => {
       pass: pass,
     },
     tls: {
+      // 'rejectUnauthorized: false' permite certificados autoassinados, útil em alguns ambientes de nuvem, 
+      // mas removemos 'ciphers: SSLv3' pois quebra conexões com provedores modernos (Gmail, etc).
       rejectUnauthorized: false,
-      ciphers: 'SSLv3',
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    // Aumentando timeouts para evitar ETIMEDOUT em redes lentas
+    connectionTimeout: 30000, // 30 segundos
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+    // Logs detalhados para ajudar no debug do Render
+    debug: true, 
+    logger: true 
+  });
+
+  // Verificação de conexão ao iniciar (opcional, mas bom para debug)
+  transporter.verify((error: any, success: any) => {
+      if (error) {
+          console.error("❌ [EmailService] Erro na conexão SMTP:", error);
+      } else {
+          console.log("✅ [EmailService] Servidor SMTP pronto para enviar mensagens.");
+      }
   });
 
   return transporter;
@@ -60,8 +84,10 @@ export const sendResetPasswordEmail = async (to: string, token: string) => {
     await t.sendMail(mailOptions);
     console.log(`📧 E-mail de recuperação enviado para ${to}`);
   } catch (error) {
-    console.error('❌ Erro ao enviar e-mail:', error);
-    throw new Error('Falha ao enviar e-mail de recuperação.');
+    console.error('❌ Erro ao enviar e-mail de recuperação:', error);
+    // Não lançamos erro aqui para não quebrar o fluxo da API se o email falhar, 
+    // mas em produção idealmente avisaríamos o usuário.
+    throw new Error('Falha ao conectar com servidor de e-mail.');
   }
 };
 
@@ -99,5 +125,7 @@ export const sendCompleteRegistrationEmail = async (
     console.log(`📧 E-mail de conclusão de cadastro enviado para ${to}`);
   } catch (error) {
     console.error('❌ Erro ao enviar e-mail de cadastro:', error);
+    // Relançar erro para que o Controller saiba que falhou e avise o frontend
+    throw error;
   }
 };
