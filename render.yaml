@@ -29,17 +29,12 @@ services:
       - key: JWT_SECRET
         sync: false
 
-      # Configuração de Email (SMTP) - Zoho/Gmail use Porta 587 (STARTTLS)
-      - key: SMTP_HOST
+      # Configuração de Email (API Resend)
+      # Substitui SMTP para evitar bloqueios de porta e timeouts
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_PORT
-        value: 587
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: SMTP_SECURE
-        value: false
+      - key: EMAIL_FROM
+        value: "FluxoClean <onboarding@resend.dev>" # Altere para seu domínio verificado
 
       # Mercado Pago
       - key: MP_ACCESS_TOKEN
