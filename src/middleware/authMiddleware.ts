@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import Tenant from '../models/Tenant';
@@ -19,6 +20,11 @@ export const protect = async (req: any, res: any, next: any) => {
   ) {
     try {
       token = req.headers.authorization.split(' ')[1];
+
+      // Handle "Bearer null" or "Bearer undefined" sent by frontend bugs gracefully
+      if (!token || token === 'null' || token === 'undefined') {
+          return res.status(401).json({ message: 'Token de autenticação inválido ou ausente.' });
+      }
 
       const decoded: any = jwt.verify(token, getJwtSecret());
 
@@ -68,14 +74,14 @@ export const protect = async (req: any, res: any, next: any) => {
 
       next();
     } catch (error: any) {
-      console.error('Auth Middleware Error:', error.message);
-
-      if (error.name === 'JsonWebTokenError') {
+      // Quietly handle JWT errors
+      if (error.name === 'JsonWebTokenError' || error.message === 'jwt malformed') {
         return res.status(401).json({
-          message:
-            'Falha de Segurança: Assinatura do token inválida.',
+          message: 'Falha de Segurança: Token inválido.',
         });
       }
+
+      console.error('Auth Middleware Error:', error.message);
 
       if (error.name === 'TokenExpiredError') {
         return res.status(401).json({
