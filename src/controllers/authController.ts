@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -127,6 +128,7 @@ export const preRegister = async (req: any, res: any) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    // Send email. If it fails, catch block will handle it.
     await sendCompleteRegistrationEmail(email, companyName, token);
 
     res.status(200).json({
@@ -136,7 +138,12 @@ export const preRegister = async (req: any, res: any) => {
     });
   } catch (error: any) {
     console.error('Pre-register error:', error);
-    res.status(500).json({ message: 'Erro interno ao processar cadastro.' });
+    // Return specific error message to frontend for better UX/Debugging
+    const errorMessage = error.message || 'Erro desconhecido';
+    if (errorMessage.includes('timeout') || errorMessage.includes('Connection')) {
+        return res.status(500).json({ message: `Erro de conexão com servidor de e-mail (SMTP Timeout). Tente novamente mais tarde.` });
+    }
+    res.status(500).json({ message: 'Erro interno ao processar cadastro: ' + errorMessage });
   }
 };
 
