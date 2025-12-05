@@ -7,16 +7,17 @@ const getTransporter = () => {
   if (transporter) return transporter;
 
   const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '465');
+  const port = parseInt(process.env.SMTP_PORT || '587');
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   
-  // Lógica restaurada do ambiente de desenvolvimento:
-  // Se a porta for 465, força secure=true. 
-  // Se a variável SMTP_SECURE for 'true', usa secure=true.
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  // CORREÇÃO CRÍTICA PARA RENDER + ZOHO:
+  // Porta 587 EXIGE secure: false (STARTTLS).
+  // Porta 465 EXIGE secure: true (SSL).
+  // Ignoramos process.env.SMTP_SECURE para evitar conflitos de configuração manual.
+  const secure = port === 465;
 
-  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure}, User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
+  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure} (Auto-definido), User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
 
   if (!host || !user || !pass) {
       console.warn("⚠️ [EmailService] Variáveis de ambiente de e-mail incompletas.");
@@ -25,7 +26,7 @@ const getTransporter = () => {
   transporter = nodemailer.createTransport({
     host: host,
     port: port,
-    secure: secure, // true para 465 (SSL), false para 587 (STARTTLS)
+    secure: secure, 
     auth: {
       user: user,
       pass: pass,
@@ -34,12 +35,11 @@ const getTransporter = () => {
       rejectUnauthorized: false,
       ciphers: 'SSLv3'
     },
-    // CRÍTICO PARA RENDER: Força IPv4.
-    // O erro ETIMEDOUT no Render geralmente ocorre porque o container tenta resolver o host SMTP via IPv6 e falha.
+    // CRÍTICO PARA RENDER: Força IPv4 para evitar timeouts de resolução DNS IPv6
     family: 4, 
-    connectionTimeout: 20000, 
-    greetingTimeout: 20000,
-    socketTimeout: 20000,
+    connectionTimeout: 30000, 
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
     debug: true, 
     logger: true 
   } as any);
@@ -48,7 +48,7 @@ const getTransporter = () => {
       if (error) {
           console.error("❌ [EmailService] Erro de conexão SMTP:", error);
       } else {
-          console.log("✅ [EmailService] Pronto para envio (Porta " + port + ").");
+          console.log(`✅ [EmailService] Pronto para envio (Porta ${port} - ${secure ? 'SSL' : 'STARTTLS'}).`);
       }
   });
 
