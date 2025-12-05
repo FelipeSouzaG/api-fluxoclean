@@ -34,7 +34,7 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
-        value: "FluxoClean <onboarding@resend.dev>" # Altere para seu domínio verificado
+        value: "FluxoClean <sistema@mail.fluxoclean.com.br>"
 
       # Mercado Pago
       - key: MP_ACCESS_TOKEN
