@@ -8,19 +8,18 @@ const getTransporter = () => {
   if (transporter) return transporter;
 
   const host = process.env.SMTP_HOST;
-  // Default to 587 (STARTTLS) if not explicitly set, as it's more robust in cloud
+  // Default to 587 (STARTTLS) if not explicitly set
   const port = parseInt(process.env.SMTP_PORT || '587');
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   
-  // Logic: 465 uses Implicit SSL (secure: true). 587 uses STARTTLS (secure: false).
-  // If SMTP_SECURE env var is set, verify it against string 'true'.
-  const isSecurePort = port === 465;
-  const secure = process.env.SMTP_SECURE !== undefined 
-    ? process.env.SMTP_SECURE === 'true' 
-    : isSecurePort;
+  // CORREÇÃO CRÍTICA:
+  // O Zoho e outros provedores modernos falham com timeout se usarmos secure: true na porta 587.
+  // Ignoramos a variável de ambiente SMTP_SECURE para evitar configurações manuais erradas no Dashboard.
+  // Regra: Porta 465 = SSL (secure: true). Porta 587 = STARTTLS (secure: false).
+  const secure = port === 465;
 
-  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure}, User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
+  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure} (Auto-definido pela porta), User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
 
   if (!host || !user || !pass) {
       console.warn("⚠️ [EmailService] Variáveis de ambiente de e-mail incompletas. O envio falhará.");
@@ -36,14 +35,14 @@ const getTransporter = () => {
     },
     tls: {
       rejectUnauthorized: false, // Permite certificados auto-assinados se necessário
-      minVersion: 'TLSv1.2'
+      ciphers: 'SSLv3' // Tentar compatibilidade legada se necessário, mas geralmente não é o problema principal
     },
-    // Force IPv4 to avoid IPv6 timeouts in some containers
+    // Force IPv4 to avoid IPv6 timeouts in some containers (Render/Docker)
     family: 4, 
-    // Increased timeouts for slow handshakes
-    connectionTimeout: 60000, // 60s
+    // Timeouts
+    connectionTimeout: 30000, // 30s
     greetingTimeout: 30000,
-    socketTimeout: 60000,
+    socketTimeout: 30000,
     debug: true, 
     logger: true 
   } as any);
