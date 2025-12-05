@@ -4,55 +4,51 @@ import nodemailer from 'nodemailer';
 let transporter: any = null;
 
 const getTransporter = () => {
-  // Sempre recriar se as variáveis de ambiente mudarem (útil para debug) ou usar singleton
   if (transporter) return transporter;
 
   const host = process.env.SMTP_HOST;
-  // Default to 587 (STARTTLS) if not explicitly set
-  const port = parseInt(process.env.SMTP_PORT || '587');
+  const port = parseInt(process.env.SMTP_PORT || '465');
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   
-  // CORREÇÃO CRÍTICA:
-  // O Zoho e outros provedores modernos falham com timeout se usarmos secure: true na porta 587.
-  // Ignoramos a variável de ambiente SMTP_SECURE para evitar configurações manuais erradas no Dashboard.
-  // Regra: Porta 465 = SSL (secure: true). Porta 587 = STARTTLS (secure: false).
-  const secure = port === 465;
+  // Lógica restaurada do ambiente de desenvolvimento:
+  // Se a porta for 465, força secure=true. 
+  // Se a variável SMTP_SECURE for 'true', usa secure=true.
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
 
-  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure} (Auto-definido pela porta), User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
+  console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure}, User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
 
   if (!host || !user || !pass) {
-      console.warn("⚠️ [EmailService] Variáveis de ambiente de e-mail incompletas. O envio falhará.");
+      console.warn("⚠️ [EmailService] Variáveis de ambiente de e-mail incompletas.");
   }
 
   transporter = nodemailer.createTransport({
     host: host,
     port: port,
-    secure: secure,
+    secure: secure, // true para 465 (SSL), false para 587 (STARTTLS)
     auth: {
       user: user,
       pass: pass,
     },
     tls: {
-      rejectUnauthorized: false, // Permite certificados auto-assinados se necessário
-      ciphers: 'SSLv3' // Tentar compatibilidade legada se necessário, mas geralmente não é o problema principal
+      rejectUnauthorized: false,
+      ciphers: 'SSLv3'
     },
-    // Force IPv4 to avoid IPv6 timeouts in some containers (Render/Docker)
+    // CRÍTICO PARA RENDER: Força IPv4.
+    // O erro ETIMEDOUT no Render geralmente ocorre porque o container tenta resolver o host SMTP via IPv6 e falha.
     family: 4, 
-    // Timeouts
-    connectionTimeout: 30000, // 30s
-    greetingTimeout: 30000,
-    socketTimeout: 30000,
+    connectionTimeout: 20000, 
+    greetingTimeout: 20000,
+    socketTimeout: 20000,
     debug: true, 
     logger: true 
   } as any);
 
-  // Verify connection immediately to fail fast in logs
   transporter.verify((error: any, success: any) => {
       if (error) {
-          console.error("❌ [EmailService] Falha na conexão SMTP durante inicialização:", error);
+          console.error("❌ [EmailService] Erro de conexão SMTP:", error);
       } else {
-          console.log("✅ [EmailService] Servidor SMTP pronto.");
+          console.log("✅ [EmailService] Pronto para envio (Porta " + port + ").");
       }
   });
 
