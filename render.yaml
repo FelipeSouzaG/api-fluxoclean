@@ -29,17 +29,17 @@ services:
       - key: JWT_SECRET
         sync: false
 
-      # Configuração de Email (SMTP) - Zoho/Gmail use Porta 587 (STARTTLS)
+      # Configuração de Email (SMTP) - Voltando para 465 (SSL Implícito)
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
-        value: 587
+        value: 465
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS
         sync: false
       - key: SMTP_SECURE
-        value: false
+        value: true
 
       # Mercado Pago
       - key: MP_ACCESS_TOKEN
