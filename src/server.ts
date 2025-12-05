@@ -10,29 +10,29 @@ import subscriptionRoutes from './routes/subscriptionRoutes';
 import webhookRoutes from './routes/webhookRoutes';
 
 // Relaxed Env Var Check for Build Time (Render builds might not have all runtime vars)
-const requiredEnvVars = [
-  'JWT_SECRET',
-  'MONGO_URI'
-];
+const requiredEnvVars = ['JWT_SECRET', 'MONGO_URI'];
 
 // Only check critical vars if we are actually starting the server (not just building)
 if (process.env.NODE_ENV === 'production' && !process.env.CI) {
-    const missingVars = requiredEnvVars.filter(key => !process.env[key]);
-    if (missingVars.length > 0) {
-      console.warn('WARNING: Missing recommended environment variables:', missingVars.join(', '));
-      // We don't exit(1) here to allow the build process to finish if it imports this file
-    }
+  const missingVars = requiredEnvVars.filter((key) => !process.env[key]);
+  if (missingVars.length > 0) {
+    console.warn(
+      'WARNING: Missing recommended environment variables:',
+      missingVars.join(', ')
+    );
+    // We don't exit(1) here to allow the build process to finish if it imports this file
+  }
 }
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 10000;
 
 app.set('trust proxy', 1);
 
 app.use(helmet() as any);
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
+  ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
   : [];
 
 app.use(
@@ -40,11 +40,15 @@ app.use(
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      
+
       // Check if the origin is in the allowed list
-      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        process.env.NODE_ENV !== 'production'
+      ) {
         return callback(null, true);
       } else {
+        console.warn(`BLOCKED CORS: Origin ${origin} is not allowed.`);
         return callback(new Error('Not allowed by CORS'), false);
       }
     },
@@ -69,15 +73,15 @@ const limiter = rateLimit({
   message: 'Muitas requisições vindas deste IP, tente novamente mais tarde.',
   keyGenerator: (req: any) => {
     return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-  }
+  },
 });
 
 app.use('/api', limiter as any);
 
 const connectDB = async () => {
   if (!process.env.MONGO_URI) {
-      console.warn("MONGO_URI not defined, skipping DB connection");
-      return;
+    console.warn('MONGO_URI not defined, skipping DB connection');
+    return;
   }
   try {
     await mongoose.connect(process.env.MONGO_URI as string);
