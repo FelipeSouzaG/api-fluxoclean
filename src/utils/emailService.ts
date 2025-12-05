@@ -4,19 +4,21 @@ import nodemailer from 'nodemailer';
 let transporter: any = null;
 
 const getTransporter = () => {
+  // Sempre recriar se as variáveis de ambiente mudarem (útil para debug) ou usar singleton
   if (transporter) return transporter;
 
   const host = process.env.SMTP_HOST;
-  // Fallback to 587 if not defined, as it's generally more reliable in cloud envs
+  // Default to 587 (STARTTLS) if not explicitly set, as it's more robust in cloud
   const port = parseInt(process.env.SMTP_PORT || '587');
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   
-  // Lógica de segurança refinada:
-  // Se SMTP_SECURE for explicitamente 'true', usa SSL.
-  // Se for porta 465, assume SSL (secure: true).
-  // Caso contrário (porta 587), usa STARTTLS (secure: false).
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  // Logic: 465 uses Implicit SSL (secure: true). 587 uses STARTTLS (secure: false).
+  // If SMTP_SECURE env var is set, verify it against string 'true'.
+  const isSecurePort = port === 465;
+  const secure = process.env.SMTP_SECURE !== undefined 
+    ? process.env.SMTP_SECURE === 'true' 
+    : isSecurePort;
 
   console.log(`📧 [EmailService] Configurando: Host=${host}, Port=${port}, Secure=${secure}, User=${user ? '***DEFINIDO***' : 'NÃO DEFINIDO'}`);
 
@@ -33,26 +35,25 @@ const getTransporter = () => {
       pass: pass,
     },
     tls: {
-      // Permite certificados autoassinados (útil em alguns proxies), 
-      // mas mantemos cifras modernas.
-      rejectUnauthorized: false,
+      rejectUnauthorized: false, // Permite certificados auto-assinados se necessário
+      minVersion: 'TLSv1.2'
     },
-    // CRÍTICO: Força o uso de IPv4. Muitos containers cloud falham ao tentar resolver IPv6 primeiro.
+    // Force IPv4 to avoid IPv6 timeouts in some containers
     family: 4, 
-    // Timeouts ajustados
-    connectionTimeout: 20000, 
-    greetingTimeout: 20000,
-    socketTimeout: 20000,
+    // Increased timeouts for slow handshakes
+    connectionTimeout: 60000, // 60s
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
     debug: true, 
     logger: true 
   } as any);
 
-  // Verificação de conexão ao iniciar
+  // Verify connection immediately to fail fast in logs
   transporter.verify((error: any, success: any) => {
       if (error) {
-          console.error("❌ [EmailService] Erro na conexão SMTP:", error);
+          console.error("❌ [EmailService] Falha na conexão SMTP durante inicialização:", error);
       } else {
-          console.log("✅ [EmailService] Servidor SMTP pronto para enviar mensagens.");
+          console.log("✅ [EmailService] Servidor SMTP pronto.");
       }
   });
 
@@ -90,7 +91,7 @@ export const sendResetPasswordEmail = async (to: string, token: string) => {
     console.log(`📧 E-mail de recuperação enviado para ${to}`);
   } catch (error) {
     console.error('❌ Erro ao enviar e-mail de recuperação:', error);
-    throw new Error('Falha ao conectar com servidor de e-mail.');
+    throw error;
   }
 };
 
